@@ -1,0 +1,1 @@
+The RunUmap function must be rerun after loading the data, as it seems this was not stored in the .rds file.
