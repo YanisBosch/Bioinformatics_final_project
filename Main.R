@@ -7,11 +7,13 @@ library(ggplot2)
 library(openxlsx)
 library(future)
 library(slingshot)
+library(MAST)
+library(readxl)
 set.seed(18)
 options(future.globals.maxSize=10000*1024^2)
 writeExcel = TRUE
 
-setwd('C:/Users/yanis/Desktop/Universite/Master/Semestre_3/Bioinformatics/Final Project')
+setwd(getwd())
 output_folder <- "./Output"
 S <- LoadSeuratRds(file = './Processed/ClusteredUmappedSeurat.rds')
 
@@ -42,10 +44,11 @@ FeaturePlot(S,features=c("VIM","TH"))   #find most interesting genes by deg
 DefaultAssay(S) = "integrated"
 
 S = FindNeighbors(S, reduction = "pca", dims = 1:100)
-S = FindClusters(S, resolution = 0.2006)
+S = FindClusters(S, resolution = 0.17)
 
 DimPlot(S,split.by="ConditionDay")
 DimPlot(S,split.by="Day")
+DimPlot(S)
 
 #SaveSeuratRds(S,"./Processed/ClusteredUmappedSeurat.rds")
 
@@ -53,115 +56,32 @@ DimPlot(S,split.by="Day")
 #                            ---- DEGs DAYWISE ----                  
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 
-DefaultAssay(S) = "RNA"
-S = SetIdent(object = S, value = S$ConditionDay)
+# IMPORT
 
-for(pink in c("PINK1")){
-  for(day in c(0,18,25,37,57)) {
-    print(paste(pink,day))
-    temp = FindMarkers(S, 
-                       assay = "RNA", 
-                       ident.1 = paste("CTL",day,sep=" "), 
-                       ident.2 = paste(pink,day,sep=" "),
-                       logfc.threshold = 0.25,
-                       min.pct = 0.05,
-                       densify = TRUE,
-                       test.use = "MAST",
-                       latent.vars = "nFeature_RNA",
-                       slot = "data")
-    temp$Day = day
-    temp$Gene = rownames(temp)
-    temp$ident.1 = "CTL"
-    temp$ident.2 = pink
-    rownames(temp) = paste(pink,day,c(1:dim(temp)[1]),sep="_")
-    if(day==0 & pink == "PINK1"){
-      DEG = temp
-    }else{
-      DEG = rbind(DEG,temp)
-    }
-  }
-}
-
-DEG = DEG %>% 
-  select(Gene,Day,pct.1,pct.2,avg_log2FC,p_val,p_val_adj,ident.1,ident.2)  %>%
-  arrange(Day,Gene,ident.2)
-
-# Export
-
-#DEG_RNA <- DEG
-#DEG_RNAimp <- DEG
-
-if(writeExcel){
-  write.xlsx(DEG,paste(output_folder,"DEG_DETAILED_MADS_new.xlsx",sep=""),colNames = TRUE,rowNames = FALSE)
-}
-
-# Test the effect of the corresponding Assay
-DefaultAssay(S) = "RNA_imputed"
-#DefaultAssay(S) = "RNA"
-
-FeaturePlot(S,features=c("ABHD13", "VIM", "TH"))
-
+DEG_daywise <- read_excel("./Processed/DEG_daywise/DEG_DETAILED_MADS_new.xlsx")
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 #                         ---- DEGs CLUSTERWISE ----                  
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 
-DefaultAssay(S) = "RNA"
-S = SetIdent(object = S, value = S$seurat_clusters)
-pairwise_clust = combn(unique(S$seurat_clusters),2)
+# IMPORT
 
-for(idx in 1:dim(pairwise_clust)[2]) {
-  print(idx)
-  pw = pairwise_clust[,idx]
-  temp = FindMarkers(S, 
-                     assay = "RNA", 
-                     ident.1 = pw[1],
-                     ident.2 = pw[2],
-                     logfc.threshold = 0.25,
-                     min.pct = 0.1,
-                     densify = TRUE,
-                     test.use = "MAST",
-                     latent.vars = "nFeature_RNA"
-  )
-  temp$gene = rownames(temp)
-  temp$pct_diff = abs(temp$pct.1-temp$pct.2)
-  temp$ident1 = pw[1]
-  temp$ident2 = pw[2]
-  if(idx==1){
-    Clust_DEG = temp
+iter = 0
+for (i in unique(S$seurat_clusters)){
+  a <- read_excel(paste("./Processed/DEG_clusterwise/",i,".xlsx",sep=""))
+  #assign(paste("DEG_cluster_", i,sep=""),a)
+  if (iter == 0){
+    DEG_clusterwise <- a
   }else{
-    Clust_DEG = rbind(Clust_DEG,temp)
+    DEG_clusterwise <- rbind(a,DEG_clusterwise)
   }
-}
-
-# order cluster along the differentiation trajectory
-Clust_DEG = Clust_DEG[,c(6,1,5,2,3,4,7,8,9)]     #ADAPT TO OUR CLUSTERS
-
-# Duplicating tests to ease search on excel file
-
-Clust_DEG_rep = Clust_DEG
-Clust_DEG_rep$avg_log2FC = -Clust_DEG_rep$avg_log2FC
-temp = Clust_DEG_rep$ident2
-Clust_DEG_rep$ident2 = Clust_DEG_rep$ident1
-Clust_DEG_rep$ident1 = temp
-temp = Clust_DEG_rep$pct.2
-Clust_DEG_rep$pct.2 = Clust_DEG_rep$pct.1
-Clust_DEG_rep$pct.1 = temp
-Clust_DEG_rep = rbind(Clust_DEG,Clust_DEG_rep)
-
-# Export
-for(i in unique(S$seurat_clusters)){
-  temp = Clust_DEG_rep %>%
-    filter(ident1 == i)
-  if(writeExcel){
-    write.xlsx(temp,paste(output_folder,"/ClusterWise/Detailed/",i,".xlsx",sep=""), colNames = TRUE, rowNames = FALSE)
-  }
+  iter = iter + 1
 }
 
 # Creating summarized version of DEG table
 
 for(i in unique(S$seurat_clusters)){
-  temp = Clust_DEG_rep %>%
+  temp = DEG_clusterwise %>%
     filter(ident1 == i) %>%
     filter(p_val_adj <= 0.05) %>%
     spread(key = ident2,value = avg_log2FC) %>%
@@ -216,6 +136,7 @@ order_clust_genes = corrplot(clust_cor,order = "hclust")$corrPos$yName[1:length(
 DefaultAssay(S) = "RNA"
 
 DoHeatmap(S,features = order_clust_genes,group.by = "seurat_clusters")
+
 
 
 
