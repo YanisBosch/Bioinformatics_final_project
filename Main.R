@@ -46,11 +46,11 @@ DefaultAssay(S) = "integrated"
 S = FindNeighbors(S, reduction = "pca", dims = 1:100)
 S = FindClusters(S, resolution = 0.17)
 
-DimPlot(S,split.by="ConditionDay")
-DimPlot(S,split.by="Day")
-DimPlot(S)
+DimPlot(S,split.by="ConditionDay",group.by="seurat_clusters")
+DimPlot(S,split.by="Day",group.by="seurat_clusters")
+DimPlot(S,group.by="seurat_clusters")
 
-#SaveSeuratRds(S,"./Processed/ClusteredUmappedSeurat.rds")
+SaveSeuratRds(S,"./Processed/ClusteredUmappedSeurat_copy.rds")
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 #                            ---- DEGs DAYWISE ----                  
