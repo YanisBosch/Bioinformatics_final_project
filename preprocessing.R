@@ -11,6 +11,7 @@ library(tidyverse)
 library(SAVER)
 library(modeest)
 library(sctransform)
+library(dplyr)
 
 #ipsc used, after 21days develop into neurons, check what is the difference between wt and pd
 
@@ -28,7 +29,7 @@ raw_folder = "./Data/"
 SampleInfo_path = "./Data/SampleInfo.xlsx"
 output_folder = "./Processed/"
 
-export_plots = FALSE
+export_plots = TRUE
 impute = TRUE
 size.factor = 1
 n_cores = 12
@@ -167,6 +168,7 @@ saveRDS(S_list_filtered,paste(output_folder,"SeuratFiltered.rds",sep=""))
 output_folder = "./Preprocessed_Data/QC_Plots/"
 
 if(export_plots){
+  iter = 0
   for(S in Samples){
     
     df_unfilt = data.frame(
@@ -194,6 +196,24 @@ if(export_plots){
       nCount_standardized = S_list_filtered[[S]]$nCount_RNA_standardized)
     
     df_filt = gather(df_filt,"Type","Value",2:9)
+    df_filt |> mutate(sample = S)
+    df_unfilt |> mutate(sample = S)
+    
+    if (iter == 0){
+      df_filt_all <- df_filt
+    }else{
+      df_filt_all <- rbind(df_filt_all,df_filt)
+      #build dataframe iteratively by joining the individual parts
+    }
+    
+    if (iter == 0){
+      df_unfilt_all <- df_unfilt
+    }else{
+      df_unfilt_all <- rbind(df_unfilt_all,df_unfilt)
+      #build dataframe iteratively by joining the individual parts
+    }
+    
+    iter <- iter + 1
     
     pdf(file = paste(output_folder,S,".pdf",sep=""), width=30, height=12)
     
@@ -212,7 +232,70 @@ if(export_plots){
   }
 }
 
+df_unfilt_all <- df_unfilt_all |> separate_wider_delim(cell_id, "_", names = c(NA, "Day", NA))
+df_filt_all <- df_filt_all |> separate_wider_delim(cell_id, "_", names = c(NA, "Day", NA))
+
+pdf(file = paste(output_folder,"Percentmt.pdf",sep=""), width=30, height=12)
+
+print(df_unfilt_all |> filter(Type == "percent.mt") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("Percentage of mt cells before QC filtering")))
+
+print(df_filt_all |> filter(Type == "percent.mt") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("Percentage of mt cells after QC filtering")))
+
+dev.off()
+
+pdf(file = paste(output_folder,"nFeature.pdf",sep=""), width=30, height=12)
+
+print(df_unfilt_all |> filter(Type == "nFeature") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("Number of features before QC filtering")))
+
+print(df_filt_all |> filter(Type == "nFeature") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("Number of features after QC filtering")))
+
+dev.off()
+
+pdf(file = paste(output_folder,"nCount.pdf",sep=""), width=30, height=12)
+
+print(df_unfilt_all |> filter(Type == "nCount") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("nCount before QC filtering")))
+
+print(df_filt_all |> filter(Type == "nCount") 
+      |> group_by(Day)
+      |> ggplot(aes(x = "",y = Value)) +
+        geom_violin(adjust = 0.8) +
+        facet_wrap(~Day,ncol = 5) +
+        labs(title = paste("nCount after QC filtering")))
+
+dev.off()
+
 output_folder = "./Preprocessed/"
+
+#PLOT PERCENT MT DAYWISE
+
+#PLOT N COUNT STANDARDISED DAYWISE
+
+#PLOT N FEATURE STANDARDISED
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = 
 #                           ---- ADD METADATA ----                  
