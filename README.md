@@ -18,7 +18,7 @@ Project:
 		
 		
 		
-For the results of co_expression analysis, please visiter the following Link
+For the results of co_expression analysis, please visite the following Link
 https://uniluxembourg-my.sharepoint.com/:f:/g/personal/020171943f_uni_lu/EpVj2NxM_blLmyfuQoOsHOYBcY0h0Wd6COb46mEYeKI_og?e=wIhlVi
 
 
