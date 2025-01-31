@@ -13,7 +13,7 @@ Please store the files in the following manner (or change the input paths accord
       - 0.xlsx
       - ...
       - 9.xlsx
-    -DEG_daywise:
+    - DEG_daywise:
       - DEG_DETAILED_MADS_new.xlsx
     - SeuratFinal.rds
 		
